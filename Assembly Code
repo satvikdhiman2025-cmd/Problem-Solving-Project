@@ -8,6 +8,28 @@ _main:				// Start of main function
 	// and give ourself space to read the letters in the file we open.
 	// main is a special name: it tells the computer that this is the
 	// function to execute first. macOS calls it _main.
+	// Check that there are 2 arguments: ./type filename
+    cmp     x0, #2
+    bne     error
+
+    // Load filename into x0
+    ldr     x0, [x1, #8]        // argv[1] = filename
+
+    // Open file (read-only)
+    mov     x1, #0              // O_RDONLY
+    mov     x16, #5             // syscall open()
+    svc     #0x80
+
+    // If open failed (x0 < 0), jump to error
+    cmp     x0, #0
+    blt     error
+
+    // Save file descriptor
+    mov     x20, x0
+
+    // Allocate 8 bytes for reading one character
+    sub     sp, sp, #8
+
 
 	// I will break up all the sub-problems into their own little
 	// paragraphs. Feel free to come to office hours if you want to
@@ -23,6 +45,9 @@ _main:				// Start of main function
 	// number. sp is special. When our program starts, it can't hold
 	// anything! We need to write code to make it hold data. How much
 	// data can sp hold? As much as we want! It's up to you.
+	
+    
+
 
 	// There are also a lot (several hundred) instructions that your
 	// CPU understands. But we won't need anywhere near that many.
@@ -52,7 +77,6 @@ _main:				// Start of main function
 	// The number of arguments we have lives in register x0
 	// If we don't have exactly 2 arguments, go to the error function
 
-	ldr	x0, [x1, #8]	// Puts the file name into register x0.
 
 	// The line above puts the file name into the first argument
 	// The x0 register always holds the first argument for a function
@@ -60,8 +84,7 @@ _main:				// Start of main function
 	// How did we say to do that in class?
 	// The second argument is always put into the x1 register
 
-	mov	x16, #5		// Put the number 5 into register x16 (open)
-	svc	#0x80		// Call the open function with 2 arguments
+
 
 	// Here, we need to check the number that the open function gives
 	// back to us.
@@ -117,6 +140,31 @@ loop:				// Start of the loop function
 	// here, it means everything was success for this letter and we
 	// should jump back to the top of the loop function so we can do
 	// it all again with the next letter.
+    // read(fd, sp, 1)
+    mov     x0, x20         // first argument: file descriptor
+    mov     x1, sp          // second: buffer location
+    mov     x2, #1          // third: number of bytes
+    mov     x16, #3         // syscall read
+    svc     #0x80
+
+    // If 0 bytes read, we hit EOF → done
+    cmp     x0, #0
+    beq     done
+    blt     error
+
+    // write(1, sp, 1)
+    mov     x0, #1          // stdout
+    mov     x1, sp          // buffer
+    mov     x2, #1
+    mov     x16, #4         // syscall write
+    svc     #0x80
+
+    // Check that write returned 1 byte
+    cmp     x0, #1
+    bne     error
+
+    b       loop
+
 
 error:				// Start of the error function
 	// You don't need to do anything with the error and done functions.
